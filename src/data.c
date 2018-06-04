@@ -163,7 +163,7 @@ int module_data_channel_init(module_t *module)
 						tmp_dca = NULL;
 						next_dca = next_dca->next;
 					} while(next_dca);
-					tmp_dca = dca;
+					tmp_dca->next = dca;
 				}
 			} else {
 				printf("ERROR, channel role invaild!\n");
@@ -207,7 +207,7 @@ int module_data_channel_init(module_t *module)
 						tmp_dca = NULL;
 						next_dca = next_dca->next;
 					} while(next_dca);
-					tmp_dca = dca;
+					tmp_dca->next = dca;
 				}
 			} else {
 				printf("ERROR, channel role invaild!\n");
