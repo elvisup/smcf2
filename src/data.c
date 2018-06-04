@@ -4,37 +4,64 @@
 #include <module_manager.h>
 #include <utils/node_list.h>
 
+static int insert_dac_list(data_chn_attr_t *dca)
+{
+	data_chn_attr_t *tmp_dca = NULL;
+	data_chn_attr_t *next_dca = gdc_table.dca;
+	do {
+		tmp_dca = next_dca;
+		if (!tmp_dca->next)
+			break;
+		tmp_dca = NULL;
+		next_dca = next_dca->next;
+	} while(next_dca);
+	if (tmp_dca)
+		tmp_dca->next = dca;
+	else
+		return -1;
+
+	return 0;
+}
+
 int check_producer_consumer_correspondence(void)
 {
-	if (g_data_chn_table.pchannel_cnt != g_data_chn_table.cchannel_cnt) {
+	if (gdc_table.schannel_cnt != gdc_table.rchannel_cnt) {
 		printf("ERROR: pchannel_cnt[%d] != cchannel_cnt[%d]\n", \
-			g_data_chn_table.pchannel_cnt, g_data_chn_table.cchannel_cnt);
+			gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
 		return -1;
 	}
 
-	int channel_cnt = g_data_chn_table.pchannel_cnt + \
-			  g_data_chn_table.cchannel_cnt;
+	int channel_cnt = gdc_table.schannel_cnt + \
+			  gdc_table.rchannel_cnt;
 
 	int i = 0;
+	data_chn_attr_t *search_dca = gdc_table.dca;
 	for (i = 0; i < channel_cnt; i++) {
-		if (g_data_chn_table.data_chn_table[i][DTABLE_CH_ATTR] == DATA_CHANNEL_RECEIVER) {
-			int pro_mid  = g_data_chn_table.data_chn_table[i][DTABLE_PRO_MODULE_ID];
-			int pro_mcnt = g_data_chn_table.data_chn_table[i][DTABLE_PRO_MODULE_CH_ID];
+		if (search_dca->ca.chnrole == DATA_CHANNEL_RECEIVER) {
+			int s_mid  = search_dca->ca.smid;
+			int s_mchnid = search_dca->ca.schnid;
+			int s_mchn_attr = search_dca->ca.chnattr;
 
-			int k = 0;
-			for (k = 0; k < channel_cnt; k++) {
-				if ((g_data_chn_table.data_chn_table[k][DTABLE_CH_ATTR] == DATA_CHANNEL_SENDER) && \
-				    (g_data_chn_table.data_chn_table[k][DTABLE_OWN_MODULE_ID] == pro_mid) && \
-				    (g_data_chn_table.data_chn_table[k][DTABLE_OWN_MODULE_CH_ID] == pro_mcnt)) {
+			data_chn_attr_t *tmp_dca = NULL;
+			data_chn_attr_t *next_dca = gdc_table.dca;
+			do {
+				tmp_dca = next_dca;
+				if ((tmp_dca->ca.rmid == s_mid) ||
+				    (tmp_dca->ca.rchnid == s_mchnid) ||
+				    (tmp_dca->ca.chnattr == s_mchn_attr) ||
+				    (tmp_dca->ca.chnrole == DATA_CHANNEL_SENDER)) {
 					break;
 				}
-			}
+				tmp_dca = NULL;
+				next_dca = next_dca->next;
+			} while(next_dca);
 
-			if (channel_cnt == k) {
-				printf("ERROR: producer & consummer not match!!\n");
+			if (!tmp_dca) {
+				printf("ERROR: sender & receiver not match!!\n");
 				goto error;
 			}
 		}
+		search_dca = search_dca->next;
 	}
 
 	//TODO: check N consummer to 1 producer
@@ -43,7 +70,7 @@ error:
 	return -1;
 }
 
-int create_module_channel(module_t *module, int chn_num)
+int create_module_channel(module_t *module, int chn_num, int attr)
 {
 	/* TODO: module para check */
 
@@ -53,10 +80,19 @@ int create_module_channel(module_t *module, int chn_num)
 	int node_size = -1;
 	int node_type = -1;
 
-	node_size = module->data_channel[chn_num].size;
-	node_type = NODE_DATA_TYPE_BUFFER;
+	int node_num;
+	if (attr == NORMAL_CHN) {
+		node_type = NODE_DATA_TYPE_BUFFER;
+		node_num  = module->data_channel[chn_num].num;
+		node_size = module->data_channel[chn_num].size;
+	} else if (attr == NORMAL_HOOK) {
+		node_type = NODE_DATA_TYPE_POINTER;
+		node_num  = module->data_hchannel[chn_num].num;
+	} else {
+		printf("%s:%d -> attr error: %d\n", __func__, __LINE__, attr );
+		goto error;
+	}
 
-	int node_num  = module->data_channel[chn_num].num;
 	int node_list = Node_List_Init(node_size, node_num, NODE_KEEP_UPDATE, NODE_BLOCK, node_type);
 	if (!node_list) {
 		printf("ERROR\n");
@@ -65,7 +101,13 @@ int create_module_channel(module_t *module, int chn_num)
 
 	module_chn_info.chn_info[cur_module_info_cnt].chn_node_list = node_list;
 	module_chn_info.chn_info[cur_module_info_cnt].producer_id = module->id;
-	module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id = chn_num;
+	if (attr == NORMAL_CHN) {
+		module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id = chn_num;
+		module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id = -1;
+	} else {
+		module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id = -1;
+		module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id = chn_num;
+	}
 	module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt = 0;
 	module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt = node_num;
 	module_chn_info.total_module_chn_cnt++;
@@ -88,28 +130,33 @@ int attach_module_channel()
 	}
 
 	// create channel node_list
-	int channel_cnt = g_data_chn_table.pchannel_cnt + \
-			  g_data_chn_table.cchannel_cnt;
+	int channel_cnt = gdc_table.schannel_cnt + \
+			  gdc_table.rchannel_cnt;
 
-	int i = 0;
-	for (i = 0; i < channel_cnt; i++) {
-		if (g_data_chn_table.data_chn_table[i][DTABLE_CH_ATTR] == DATA_CHANNEL_SENDER) {
+	data_chn_attr_t *tmp_dca = NULL;
+	data_chn_attr_t *dca = gdc_table.dca;
+	do {
+		tmp_dca = dca;
+		if (tmp_dca->ca.chnrole == DATA_CHANNEL_SENDER) {
 			module_t *cur_module = NULL;
-			int module_id = g_data_chn_table.data_chn_table[i][DTABLE_OWN_MODULE_ID];
+			int module_id = tmp_dca->ca.smid;
+			int mchn_id = tmp_dca->ca.schnid;
+
 			cur_module = search_module_from_mblock_list(module_id);
 			if (!cur_module) {
 				printf("ERROR:\n");
 				goto error;
 			}
 
-			int mchn_id = g_data_chn_table.data_chn_table[i][DTABLE_OWN_MODULE_CH_ID];
-			ret = create_module_channel(cur_module, mchn_id);
+			ret = create_module_channel(cur_module, mchn_id, tmp_dca->ca.chnattr);
 			if (ret) {
 				printf("ERROR:\n");
 				goto error;
 			}
 		}
-	}
+		tmp_dca = NULL;
+		dca = dca->next;
+	} while(dca);
 
 	//TODO: create correspondence table list
 
@@ -120,6 +167,7 @@ error:
 
 int module_data_channel_init(module_t *module)
 {
+	int ret = -1;
 	if (!module) {
 		printf("ERROR!\n");
 		return -1;
@@ -140,30 +188,21 @@ int module_data_channel_init(module_t *module)
 				}
 				dca->next = NULL;
 				dca->chnattr = NORMAL_CHN;
+				dca->ca.chnrole   = module->data_channel[i].role;
 
 				if (module->data_channel[i].role == DATA_CHANNEL_SENDER) {
-					dca->simd   = module_id;
-					dca->schnid = i;
+					dca->ca.smid   = module_id;
+					dca->ca.schnid = i;
 					gdc_table.schannel_cnt++;
 				} else {
-					dca->rimd   = module_id;
-					dca->rchnid = i;
+					dca->ca.rimd   = module_id;
+					dca->ca.rchnid = i;
 					gdc_table.rchannel_cnt++;
 				}
-				//TODO: need to check
-				if (!gdc_table->dca)
-					gdc_table->dca = dca;
+				if (!gdc_table.dca)
+					gdc_table.dca = dca;
 				else {
-					data_chn_attr_t *tmp_dca = NULL;
-					data_chn_attr_t *next_dca = gdc_table->dca;
-					do {
-						tmp_dca = next_dca;
-						if (!tmp_dca->next)
-							break;
-						tmp_dca = NULL;
-						next_dca = next_dca->next;
-					} while(next_dca);
-					tmp_dca->next = dca;
+					ret = insert_dac_list(dca);
 				}
 			} else {
 				printf("ERROR, channel role invaild!\n");
@@ -184,30 +223,21 @@ int module_data_channel_init(module_t *module)
 				}
 				dca->next = NULL;
 				dca->chnattr = HOOK_CHN;
+				dca->ca.chnrole   = module->data_hchannel[i].role;
 
 				if (module->data_hchannel[i].role == DATA_CHANNEL_SENDER) {
-					dca->simd   = module_id;
-					dca->schnid = i;
+					dca->ca.smid   = module_id;
+					dca->ca.schnid = i;
 					gdc_table.schannel_cnt++;
 				} else {
-					dca->rimd   = module_id;
-					dca->rchnid = i;
+					dca->ca.rimd   = module_id;
+					dca->ca.rchnid = i;
 					gdc_table.rchannel_cnt++;
 				}
-				//TODO: need to check
-				if (!gdc_table->dca)
-					gdc_table->dca = dca;
+				if (!gdc_table.dca)
+					gdc_table.dca = dca;
 				else {
-					data_chn_attr_t *tmp_dca = NULL;
-					data_chn_attr_t *next_dca = gdc_table->dca;
-					do {
-						tmp_dca = next_dca;
-						if (!tmp_dca->next)
-							break;
-						tmp_dca = NULL;
-						next_dca = next_dca->next;
-					} while(next_dca);
-					tmp_dca->next = dca;
+					ret = insert_dac_list(dca);
 				}
 			} else {
 				printf("ERROR, channel role invaild!\n");

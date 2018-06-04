@@ -10,6 +10,7 @@
 #define MAX_CHN_THRESHOLD    128
 
 typedef struct __chn_attr {
+	int chnrole;  /* chn attr */
 	int chnattr;  /* chn attr */
 
 	int smid;      /* send module id */
@@ -41,8 +42,10 @@ typedef struct __channel_info {
 	int chn_node_list;
 	int producer_id;
 	int producer_chn_id;
+	int producer_hchn_id;
 	int consumer_id;
 	int consumer_chn_id;
+	int consumer_hchn_id;
 	int chn_use_node_cnt;
 	int chn_free_node_cnt;
 } channel_info_t;
