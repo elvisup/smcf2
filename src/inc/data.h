@@ -18,6 +18,8 @@ typedef struct __chn_attr {
 
 	int rmid;      /* recv module id */
 	int rchnid;    /* recv chn id */
+	int rsmid;      /* recv side conps sender module id */
+	int rschnid;    /* recv side conps sender chn id */
 } chn_attr_t;
 
 typedef struct __data_chn_attr data_chn_attr_t;
