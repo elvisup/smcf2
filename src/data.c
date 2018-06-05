@@ -333,7 +333,7 @@ int search_data_node_list(int module_id, int chn_id)
 	return 0;
 }
 
-void *get_data(int current_module_id, int channel_id, int chn_type)
+void *read_data(int current_module_id, int channel_id, int chn_type)
 {
 	module_t *cur_module = NULL;
 	cur_module = search_module_from_mblock_list(current_module_id);
@@ -402,7 +402,7 @@ error:
 	return NULL;
 }
 
-int put_data(int current_module_id, int channel_id, void *data, int chn_type)
+int write_data(int current_module_id, int channel_id, void *data, int chn_type)
 {
 	module_t *cur_module = NULL;
 	cur_module = search_module_from_mblock_list(current_module_id);
@@ -472,22 +472,22 @@ error:
 	return -1;
 }
 
-void *get_normal_chn_data(int current_module_id, int channel_id)
+void *get_data(int current_module_id, int channel_id)
 {
-	return get_data(current_module_id, channel_id, NORMAL_CHN);
+	return read_data(current_module_id, channel_id, NORMAL_CHN);
 }
 
-int put_normal_chn_data(int current_module_id, int channel_id, void *data)
+int put_data(int current_module_id, int channel_id, void *data)
 {
-	return put_data(current_module_id, channel_id, data, NORMAL_CHN);
+	return write_data(current_module_id, channel_id, data, NORMAL_CHN);
 }
 
-void *get_hook_chn_data(int current_module_id, int channel_id)
+void *get_hook_data(int current_module_id, int channel_id)
 {
-	return get_data(current_module_id, channel_id, HOOK_CHN);
+	return read_data(current_module_id, channel_id, HOOK_CHN);
 }
 
-int put_hook_chn_data(int current_module_id, int channel_id, void *data)
+int put_hook_data(int current_module_id, int channel_id, void *data)
 {
-	return put_data(current_module_id, channel_id, data, HOOK_CHN);
+	return write_data(current_module_id, channel_id, data, HOOK_CHN);
 }

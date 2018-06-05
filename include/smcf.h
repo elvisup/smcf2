@@ -114,8 +114,8 @@ typedef struct node node_t;
  *   otherwise this channel is receiver, will return a use data node
  * ...
  **/
-void *get_normal_chn_data(int current_module_id, int channel_id);
-void *get_hook_chn_data(int current_module_id, int channel_id);
+void *get_data(int current_module_id, int channel_id);
+void *get_hook_data(int current_module_id, int channel_id);
 
 /**
  * put_normal_chn_data
@@ -129,8 +129,8 @@ void *get_hook_chn_data(int current_module_id, int channel_id);
  *   otherwise this channel is receiver, will put data to free node list.
  * ...
  **/
-int put_normal_chn_data(int current_module_id, int channel_id, void *data);
-int put_hook_chn_data(int current_module_id, int channel_id, void *data);
+int put_data(int current_module_id, int channel_id, void *data);
+int put_hook_data(int current_module_id, int channel_id, void *data);
 
 /*******************************************************************************\
  * smcf                                                                        *
