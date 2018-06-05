@@ -124,7 +124,7 @@ void attach_sender_receiver_chn_info(void)
 	if (gdc_table.schannel_cnt != gdc_table.rchannel_cnt) {
 		printf("ERROR: pchannel_cnt[%d] != cchannel_cnt[%d]\n", \
 			gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
-		return -1;
+		return;
 	}
 
 	int channel_cnt = gdc_table.schannel_cnt + \
@@ -328,6 +328,11 @@ error:
 	return -1;
 }
 
+int search_data_node_list(int module_id, int chn_id)
+{
+	return 0;
+}
+
 void *get_data(int current_module_id, int channel_id, int chn_type)
 {
 	module_t *cur_module = NULL;
@@ -337,12 +342,134 @@ void *get_data(int current_module_id, int channel_id, int chn_type)
 		goto error;
 	}
 
+	int mid;
+	int cid;
+	int module_role;
+	if (chn_type == NORMAL_CHN) {
+		module_role = cur_module->data_channel[channel_id].role;
+	} else if (chn_type == HOOK_CHN) {
+		module_role = cur_module->data_hchannel[channel_id].role;
+	} else {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	if (module_role == DATA_CHANNEL_SENDER) {
+		mid = current_module_id;
+		cid = channel_id;
+	} else if (module_role == DATA_CHANNEL_RECEIVER) {
+		if (chn_type == NORMAL_CHN) {
+			mid = cur_module->data_channel[channel_id].module_id;
+			cid = cur_module->data_channel[channel_id].channel;
+		} else {
+			mid = cur_module->data_hchannel[channel_id].module_id;
+			cid = cur_module->data_hchannel[channel_id].channel;
+		}
+	} else {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	int cur_module_info_cnt = module_chn_info.total_module_chn_cnt;
+	int i = 0;
+	for (i = 0; i < cur_module_info_cnt; i++) {
+		if (((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
+		     (module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id == cid)) || \
+		    ((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
+		     (module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id == cid))) {
+			break;
+		}
+	}
+
+	if (i == cur_module_info_cnt) {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	int nodelist = module_chn_info.chn_info[cur_module_info_cnt].chn_node_list;
+
+	node_t *node = NULL;
+	if (module_role == DATA_CHANNEL_SENDER) {
+		node = Get_Free_Node(nodelist);
+		module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt--;
+	} else {
+		node = Get_Use_Node(nodelist);
+		module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt--;
+	}
+
+	return node;
 error:
 	return NULL;
 }
 
 int put_data(int current_module_id, int channel_id, void *data, int chn_type)
 {
+	module_t *cur_module = NULL;
+	cur_module = search_module_from_mblock_list(current_module_id);
+	if (!cur_module) {
+		printf("ERROR:\n");
+		goto error;
+	}
+
+	int mid;
+	int cid;
+	int module_role;
+	if (chn_type == NORMAL_CHN) {
+		module_role = cur_module->data_channel[channel_id].role;
+	} else if (chn_type == HOOK_CHN) {
+		module_role = cur_module->data_hchannel[channel_id].role;
+	} else {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	if (module_role == DATA_CHANNEL_SENDER) {
+		mid = current_module_id;
+		cid = channel_id;
+	} else if (module_role == DATA_CHANNEL_RECEIVER) {
+		if (chn_type == NORMAL_CHN) {
+			mid = cur_module->data_channel[channel_id].module_id;
+			cid = cur_module->data_channel[channel_id].channel;
+		} else {
+			mid = cur_module->data_hchannel[channel_id].module_id;
+			cid = cur_module->data_hchannel[channel_id].channel;
+		}
+	} else {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	int cur_module_info_cnt = module_chn_info.total_module_chn_cnt;
+	int i = 0;
+	for (i = 0; i < cur_module_info_cnt; i++) {
+		if (((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
+		     (module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id == cid)) || \
+		    ((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
+		     (module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id == cid))) {
+			break;
+		}
+	}
+
+	if (i == cur_module_info_cnt) {
+		printf("ERROR\n");
+		goto error;
+	}
+
+	int nodelist = module_chn_info.chn_info[cur_module_info_cnt].chn_node_list;
+
+	node_t *node = (node_t *)data;
+	if (module_role == DATA_CHANNEL_SENDER) {
+		Put_Use_Node(nodelist, node);
+		module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt++;
+	} else {
+		node = Get_Use_Node(nodelist);
+		Put_Free_Node(nodelist, node);
+		module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt++;
+	}
+
+	return 0;
+error:
+	return -1;
 }
 
 void *get_normal_chn_data(int current_module_id, int channel_id)
@@ -351,6 +478,16 @@ void *get_normal_chn_data(int current_module_id, int channel_id)
 }
 
 int put_normal_chn_data(int current_module_id, int channel_id, void *data)
+{
+	return put_data(current_module_id, channel_id, data, NORMAL_CHN);
+}
+
+void *get_hook_chn_data(int current_module_id, int channel_id)
+{
+	return get_data(current_module_id, channel_id, HOOK_CHN);
+}
+
+int put_hook_chn_data(int current_module_id, int channel_id, void *data)
 {
 	return put_data(current_module_id, channel_id, data, HOOK_CHN);
 }

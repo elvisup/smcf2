@@ -101,8 +101,10 @@ typedef struct __data_channel_hook {
 	int channel;		/* if module is sender set -1, if is receiver set sender channel id */
 } data_channel_hook_t;
 
+typedef struct node node_t;
+
 /**
- * get_data
+ * get_normal_chn_data
  * input:
  *   current_module_id: get data module's id
  *   channel_id: get data module channel's id
@@ -112,11 +114,11 @@ typedef struct __data_channel_hook {
  *   otherwise this channel is receiver, will return a use data node
  * ...
  **/
-//void *get_data(int current_module_id, int channel_id);
 void *get_normal_chn_data(int current_module_id, int channel_id);
+void *get_hook_chn_data(int current_module_id, int channel_id);
 
 /**
- * put_data
+ * put_normal_chn_data
  * input:
  *   current_module_id: get data module's id
  *   channel_id: get data module channel's id
@@ -127,8 +129,8 @@ void *get_normal_chn_data(int current_module_id, int channel_id);
  *   otherwise this channel is receiver, will put data to free node list.
  * ...
  **/
-//int put_data(int current_module_id, int channel_id, void *data);
 int put_normal_chn_data(int current_module_id, int channel_id, void *data);
+int put_hook_chn_data(int current_module_id, int channel_id, void *data);
 
 /*******************************************************************************\
  * smcf                                                                        *
