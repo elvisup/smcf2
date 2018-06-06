@@ -462,7 +462,6 @@ int write_data(int current_module_id, int channel_id, void *data, int chn_type)
 		Put_Use_Node(nodelist, node);
 		module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt++;
 	} else {
-		node = Get_Use_Node(nodelist);
 		Put_Free_Node(nodelist, node);
 		module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt++;
 	}
