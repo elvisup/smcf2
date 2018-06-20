@@ -5,12 +5,17 @@
 #include <pthread.h>
 #include <signal.h>
 #include <string.h>
+#include <errno.h>
 
 #include <core.h>
 #include <msg.h>
+#include <data.h>
 #include <module_manager.h>
 
 smcf_context_t *context = NULL;
+extern data_chn_table_t gdc_table;
+volatile int smcf_startup;
+
 
 static void *msg_process_entry(void *data) {
 	int ret;
@@ -27,14 +32,14 @@ static void *msg_process_entry(void *data) {
 		/* get msg */
 		msg = read_msg(context->msgq_context, module_id);
 		if (!msg) {
-			printf("WARNING: module [%s(ID:%d)] get an null message\n", module_name, module_id);
+			slog(LOG_INFO, "module [%s(ID:%d)] get an null message\n", module_name, module_id);
 			continue;
 		}
 
 		/* process msg */
 		ret = module->msg_process(msg->sender_id, msg->msgid, msg->data);
 		if (ret) {
-			printf("ERROR\n");
+			slog(LOG_ERR, "%s:%d -> %s msg_process error!\n", __func__, __LINE__, module_name);
 		}
 
 		/* free msg and msg->data */
@@ -48,14 +53,14 @@ int smcf_init(void)
 {
 	context = (smcf_context_t *)malloc(sizeof(smcf_context_t));
 	if (!context) {
-		printf("%s:%d -> malloc smcf_context_t error!\n", __func__, __LINE__);
+		slog(LOG_ERR, "%s:%d -> malloc smcf_context_t error(%s)!\n", __func__, __LINE__, strerror(errno));
 		goto error_context;
 	}
 	memset(context, 0x0, sizeof(smcf_context_t));
 
 	context->module_list_ctx = (module_list_ctx_t *)malloc(sizeof(module_list_ctx_t));
 	if (!context->module_list_ctx) {
-		printf("%s:%d -> malloc module_list_ctx error!\n", __func__, __LINE__);
+		slog(LOG_ERR, "%s:%d -> malloc module_list_ctx error(%s)!\n", __func__, __LINE__, strerror(errno));
 		goto error_module_list_ctx;
 	}
 	memset(context->module_list_ctx, 0x0, sizeof(module_list_ctx_t));
@@ -63,9 +68,15 @@ int smcf_init(void)
 	context->module_list_ctx->module_cnt = 0;
 
 	context->msgq_context = msgq_init(MAX_MSGQUEUE_BLOCK_NUM);
+	if (context->msgq_context == 0) {
+		slog(LOG_ERR, "%s:%d -> msgq_init error!\n", __func__, __LINE__);
+		goto error_msgq_init;
+	}
 
 	return 0;
 
+error_msgq_init:
+	free(context->module_list_ctx);
 error_module_list_ctx:
 	free(context);
 error_context:
@@ -76,7 +87,12 @@ int smcf_start(void)
 {
 	int ret = -1;
 
-	/*ret = smcf_module_register(context->lm);*/
+	ret = attach_module_channel();
+	if (ret) {
+		slog(LOG_ERR, "%s:%d -> attach_module_channel!\n", __func__, __LINE__);
+	} else {
+		smcf_startup = 1;
+	}
 
 	return ret;
 }
@@ -92,7 +108,7 @@ int smcf_module_register(module_t *module)
 
 	module_block_t *module_block = (module_block_t *)malloc(sizeof(module_block_t));
 	if (!module_block) {
-		printf("ERROR: alloc memory for module_block error!\n");
+		slog(LOG_ERR, "%s:%d -> alloc memory for module_block error(%s)!\n", __func__, __LINE__, strerror(errno));
 		return -1;
 	}
 
@@ -102,7 +118,13 @@ int smcf_module_register(module_t *module)
 
 	ret = add_module2mblock_list(module_block);
 	if (ret) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d -> add_module2mblock_list!\n", __func__, __LINE__);
+		goto error;
+	}
+
+	ret = module_data_channel_init(module);
+	if (ret == -1) {
+		slog(LOG_ERR, "%s:%d -> module_data_channel_init error!\n", __func__, __LINE__);
 		goto error;
 	}
 
@@ -116,14 +138,14 @@ int smcf_module_register(module_t *module)
 			ret = pthread_create(&thread, &attr, &msg_process_entry, (void*)module_block);
 		} else {
 			//TODO
-			printf("error\n");
+			slog(LOG_ERR, "%s:%d -> msg_process, maybe you should manager message manual!\n", __func__, __LINE__);
 		}
 	}
-	printf("%s:%d -> register %s to smcf ok!\n", __func__, __LINE__, module->name);
+	slog(LOG_INFO, "%s:%d -> register %s to smcf ok!\n", __func__, __LINE__, module->name);
 	return ret;
 
 error:
-	printf("%s:%d -> register %s to smcf error!\n", __func__, __LINE__, module->name);
+	slog(LOG_ERR, "%s:%d -> register %s to smcf error!\n", __func__, __LINE__, module->name);
 	free(module_block);
 	return ret;
 }

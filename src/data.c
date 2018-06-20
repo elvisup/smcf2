@@ -1,9 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <smcf.h>
 #include <data.h>
 #include <module_manager.h>
 #include <utils/node_list.h>
+
+data_chn_table_t gdc_table = {
+	.schannel_cnt = 0,
+	.rchannel_cnt = 0,
+	.dca = NULL
+};
 
 static int insert_dac_list(data_chn_attr_t *dca)
 {
@@ -27,8 +34,8 @@ static int insert_dac_list(data_chn_attr_t *dca)
 int check_producer_consumer_correspondence(void)
 {
 	if (gdc_table.schannel_cnt != gdc_table.rchannel_cnt) {
-		printf("ERROR: pchannel_cnt[%d] != cchannel_cnt[%d]\n", \
-			gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
+		slog(LOG_ERR, "%s:%d pchannel_cnt[%d] != cchannel_cnt[%d]\n", __func__, __LINE__\
+			, gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
 		return -1;
 	}
 
@@ -38,19 +45,20 @@ int check_producer_consumer_correspondence(void)
 	int i = 0;
 	data_chn_attr_t *search_dca = gdc_table.dca;
 	for (i = 0; i < channel_cnt; i++) {
-		if (search_dca->ca.chnrole == DATA_CHANNEL_RECEIVER) {
+		if (search_dca->ca.chnrole == DATA_CHANNEL_SENDER) {
 			int s_mid  = search_dca->ca.smid;
 			int s_mchnid = search_dca->ca.schnid;
 			int s_mchn_attr = search_dca->ca.chnattr;
 
+			slog(LOG_INFO, "%s:%d sender module info: module id: %d, chn id: %d\n", __func__, __LINE__, s_mid, s_mchnid);
 			data_chn_attr_t *tmp_dca = NULL;
 			data_chn_attr_t *next_dca = gdc_table.dca;
 			do {
 				tmp_dca = next_dca;
-				if ((tmp_dca->ca.rmid == s_mid) ||
-				    (tmp_dca->ca.rchnid == s_mchnid) ||
+				if ((tmp_dca->ca.rsmid == s_mid) ||
+				    (tmp_dca->ca.rschnid == s_mchnid) ||
 				    (tmp_dca->ca.chnattr == s_mchn_attr) ||
-				    (tmp_dca->ca.chnrole == DATA_CHANNEL_SENDER)) {
+				    (tmp_dca->ca.chnrole == DATA_CHANNEL_RECEIVER)) {
 					break;
 				}
 				tmp_dca = NULL;
@@ -58,7 +66,7 @@ int check_producer_consumer_correspondence(void)
 			} while(next_dca);
 
 			if (!tmp_dca) {
-				printf("ERROR: sender & receiver not match!!\n");
+				slog(LOG_ERR, "%s:%d sender & receiver not match!!\n", __func__, __LINE__);
 				goto error;
 			}
 		}
@@ -90,13 +98,13 @@ int create_module_channel(module_t *module, int chn_num, int attr)
 		node_type = NODE_DATA_TYPE_POINTER;
 		node_num  = module->data_hchannel[chn_num].num;
 	} else {
-		printf("%s:%d -> attr error: %d\n", __func__, __LINE__, attr );
+		slog(LOG_ERR, "%s:%d attr error: %d!\n", __func__, __LINE__, attr);
 		goto error;
 	}
 
 	int node_list = Node_List_Init(node_size, node_num, NODE_KEEP_UPDATE, NODE_BLOCK, node_type);
 	if (!node_list) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d Node_List_Init error!\n", __func__, __LINE__);
 		goto error;
 	}
 
@@ -111,6 +119,7 @@ int create_module_channel(module_t *module, int chn_num, int attr)
 	}
 	module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt = 0;
 	module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt = node_num;
+	/*slog(LOG_DBG, "%s:%d cur_module_info_cnt %d, nodelist: %p\n", __func__, __LINE__, cur_module_info_cnt, node_list);*/
 	module_chn_info.total_module_chn_cnt++;
 
 	return 0;
@@ -122,8 +131,8 @@ error:
 void attach_sender_receiver_chn_info(void)
 {
 	if (gdc_table.schannel_cnt != gdc_table.rchannel_cnt) {
-		printf("ERROR: pchannel_cnt[%d] != cchannel_cnt[%d]\n", \
-			gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
+		slog(LOG_ERR, "%s:%d pchannel_cnt[%d] != cchannel_cnt[%d]!\n", \
+		     __func__, __LINE__, gdc_table.schannel_cnt, gdc_table.rchannel_cnt);
 		return;
 	}
 
@@ -151,7 +160,7 @@ void attach_sender_receiver_chn_info(void)
 							module_chn_info.chn_info[k].consumer_chn_id = r_mchnid;
 							break;
 						} else {
-							printf("ERROR\n");
+							slog(LOG_ERR, "%s:%d normal sender & recv chn cant match!\n", __func__, __LINE__);
 							goto error;
 						}
 					} else if (r_mchn_attr == HOOK_CHN) {
@@ -160,13 +169,13 @@ void attach_sender_receiver_chn_info(void)
 							module_chn_info.chn_info[k].consumer_hchn_id = r_mchnid;
 							break;
 						} else {
-							printf("ERROR\n");
+							slog(LOG_ERR, "%s:%d hook sender & recv chn cant match!\n", __func__, __LINE__);
 							goto error;
 						}
 					}
 				}
 				if (k == cur_module_info_cnt) {
-					printf("ERROR\n");
+					slog(LOG_ERR, "%s:%d dont hava sender chn match this recv chn!\n", __func__, __LINE__);
 					goto error;
 				}
 			}
@@ -180,23 +189,18 @@ error:
 	return;
 }
 
-int attach_module_channel()
+int attach_module_channel(void)
 {
 	int ret = -1;
 
 	// check correspondence
 	ret = check_producer_consumer_correspondence();
 	if (ret) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d check_producer_consumer_correspondence error!\n", __func__, __LINE__);
 		return ret;
 	}
 
 	// create channel node_list
-	/*
-	 *int channel_cnt = gdc_table.schannel_cnt + \
-	 *                  gdc_table.rchannel_cnt;
-	 */
-
 	data_chn_attr_t *tmp_dca = NULL;
 	data_chn_attr_t *dca = gdc_table.dca;
 	do {
@@ -208,13 +212,13 @@ int attach_module_channel()
 
 			cur_module = search_module_from_mblock_list(module_id);
 			if (!cur_module) {
-				printf("ERROR:\n");
+				slog(LOG_ERR, "%s:%d search_module_from_mblock_list error!\n", __func__, __LINE__);
 				goto error;
 			}
 
 			ret = create_module_channel(cur_module, mchn_id, tmp_dca->ca.chnattr);
 			if (ret) {
-				printf("ERROR:\n");
+				slog(LOG_ERR, "%s:%d create_module_channel error!\n", __func__, __LINE__);
 				goto error;
 			}
 		}
@@ -328,17 +332,12 @@ error:
 	return -1;
 }
 
-int search_data_node_list(int module_id, int chn_id)
-{
-	return 0;
-}
-
-void *read_data(int current_module_id, int channel_id, int chn_type)
+void *read_data(int current_module_id, int channel_id, void *data, int chn_type, unsigned int dsize)
 {
 	module_t *cur_module = NULL;
 	cur_module = search_module_from_mblock_list(current_module_id);
 	if (!cur_module) {
-		printf("ERROR:\n");
+		slog(LOG_ERR, "%s:%d search_module_from_mblock_list error\n", __func__, __LINE__);
 		goto error;
 	}
 
@@ -350,52 +349,59 @@ void *read_data(int current_module_id, int channel_id, int chn_type)
 	} else if (chn_type == HOOK_CHN) {
 		module_role = cur_module->data_hchannel[channel_id].role;
 	} else {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d chn_type error\n", __func__, __LINE__);
 		goto error;
 	}
 
+	int data_size = 0;
 	if (module_role == DATA_CHANNEL_SENDER) {
 		mid = current_module_id;
 		cid = channel_id;
+		if (chn_type == NORMAL_CHN) {
+			data_size = cur_module->data_channel[channel_id].size;
+		}else {
+			data_size = dsize;
+		}
 	} else if (module_role == DATA_CHANNEL_RECEIVER) {
 		if (chn_type == NORMAL_CHN) {
 			mid = cur_module->data_channel[channel_id].module_id;
 			cid = cur_module->data_channel[channel_id].channel;
+			data_size = cur_module->data_channel[channel_id].size;
 		} else {
 			mid = cur_module->data_hchannel[channel_id].module_id;
 			cid = cur_module->data_hchannel[channel_id].channel;
+			data_size = dsize;
 		}
 	} else {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d module_role error\n", __func__, __LINE__);
 		goto error;
 	}
 
 	int cur_module_info_cnt = module_chn_info.total_module_chn_cnt;
 	int i = 0;
 	for (i = 0; i < cur_module_info_cnt; i++) {
-		if (((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
-		     (module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id == cid)) || \
-		    ((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
-		     (module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id == cid))) {
+		if (((module_chn_info.chn_info[i].producer_id == mid) && \
+		     (module_chn_info.chn_info[i].producer_chn_id == cid)) || \
+		    ((module_chn_info.chn_info[i].producer_id == mid) && \
+		     (module_chn_info.chn_info[i].producer_hchn_id == cid))) {
 			break;
 		}
 	}
 
 	if (i == cur_module_info_cnt) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d cur_module_info_cnt == i\n", __func__, __LINE__);
 		goto error;
 	}
 
-	int nodelist = module_chn_info.chn_info[cur_module_info_cnt].chn_node_list;
+	int nodelist = module_chn_info.chn_info[i].chn_node_list;
 
 	node_t *node = NULL;
-	if (module_role == DATA_CHANNEL_SENDER) {
-		node = Get_Free_Node(nodelist);
-		module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt--;
-	} else {
-		node = Get_Use_Node(nodelist);
-		module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt--;
-	}
+	node = Get_Use_Node(nodelist);
+	//TODO: normal or hook channel both need memcpy
+	memcpy(data, node->data, data_size);
+	Put_Free_Node(nodelist, node);
+	module_chn_info.chn_info[i].chn_free_node_cnt++;
+	module_chn_info.chn_info[i].chn_use_node_cnt--;
 
 	return node;
 error:
@@ -442,10 +448,10 @@ int write_data(int current_module_id, int channel_id, void *data, int chn_type)
 	int cur_module_info_cnt = module_chn_info.total_module_chn_cnt;
 	int i = 0;
 	for (i = 0; i < cur_module_info_cnt; i++) {
-		if (((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
-		     (module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id == cid)) || \
-		    ((module_chn_info.chn_info[cur_module_info_cnt].producer_id == mid) && \
-		     (module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id == cid))) {
+		if (((module_chn_info.chn_info[i].producer_id == mid) && \
+		     (module_chn_info.chn_info[i].producer_chn_id == cid)) || \
+		    ((module_chn_info.chn_info[i].producer_id == mid) && \
+		     (module_chn_info.chn_info[i].producer_hchn_id == cid))) {
 			break;
 		}
 	}
@@ -455,25 +461,29 @@ int write_data(int current_module_id, int channel_id, void *data, int chn_type)
 		goto error;
 	}
 
-	int nodelist = module_chn_info.chn_info[cur_module_info_cnt].chn_node_list;
+	int nodelist = module_chn_info.chn_info[i].chn_node_list;
+	/*slog(LOG_DBG, "%s:%d cur_module_info_cnt %d, nodelist: %p\n", __func__, __LINE__, i, nodelist);*/
 
-	node_t *node = (node_t *)data;
-	if (module_role == DATA_CHANNEL_SENDER) {
-		Put_Use_Node(nodelist, node);
-		module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt++;
+	node_t *node = NULL;
+	int data_size = cur_module->data_channel[channel_id].size;
+	node = Get_Free_Node(nodelist);
+	if (chn_type == NORMAL_CHN) {
+		memcpy(node->data, data, data_size);
 	} else {
-		Put_Free_Node(nodelist, node);
-		module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt++;
+		node->data = data;
 	}
+	Put_Use_Node(nodelist, node);
+	module_chn_info.chn_info[i].chn_free_node_cnt--;
+	module_chn_info.chn_info[i].chn_use_node_cnt++;
 
 	return 0;
 error:
 	return -1;
 }
 
-void *get_data(int current_module_id, int channel_id)
+void *get_data(int current_module_id, int channel_id, void *data)
 {
-	return read_data(current_module_id, channel_id, NORMAL_CHN);
+	return read_data(current_module_id, channel_id, data, NORMAL_CHN, 0);
 }
 
 int put_data(int current_module_id, int channel_id, void *data)
@@ -481,9 +491,9 @@ int put_data(int current_module_id, int channel_id, void *data)
 	return write_data(current_module_id, channel_id, data, NORMAL_CHN);
 }
 
-void *get_hook_data(int current_module_id, int channel_id)
+void *get_hook_data(int current_module_id, int channel_id, void *data, unsigned int dsize)
 {
-	return read_data(current_module_id, channel_id, HOOK_CHN);
+	return read_data(current_module_id, channel_id, data, HOOK_CHN, dsize);
 }
 
 int put_hook_data(int current_module_id, int channel_id, void *data)

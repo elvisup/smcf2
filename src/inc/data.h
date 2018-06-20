@@ -33,11 +33,6 @@ typedef struct __data_chn_table {
 	int rchannel_cnt; /* recv channel cnt */
 	data_chn_attr_t *dca;
 } data_chn_table_t;
-data_chn_table_t gdc_table = {
-	.schannel_cnt = 0,
-	.rchannel_cnt = 0,
-	.dca = NULL,
-};
 
 //{node_list, pro_id, pro_chn_id, con_id, con_chn_id, run_cnt, run_time, use_cnt, free_cnt}
 typedef struct __channel_info {
@@ -58,4 +53,6 @@ typedef struct __module_chn_info {
 } module_chn_info_t;
 module_chn_info_t module_chn_info;
 
+int attach_module_channel(void);
+int module_data_channel_init(module_t *module);
 #endif

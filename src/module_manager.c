@@ -29,12 +29,12 @@ static module_block_t *search_mblock_tail(module_block_t *mlist)
 module_t *search_module_from_mblock_list(int module_id)
 {
 	if (module_id < 0) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d module_id < 0\n", __func__, __LINE__);
 		return NULL;
 	}
 
 	if (context->module_list_ctx->module_block_list == NULL) {
-		printf("ERROR\n");
+		slog(LOG_ERR, "%s:%d module_block_list is null!\n", __func__, __LINE__);
 		return NULL;
 	}
 

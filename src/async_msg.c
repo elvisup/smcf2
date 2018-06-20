@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <errno.h>
 
 #include <core.h>
 #include <msg.h>
@@ -19,20 +20,20 @@ int msgq_init(int qb_num)
 	msgq_context_t *context;
 
 	if (qb_num <= 0 || qb_num > MAX_MSGQUEUE_SIZE) {
-		printf("ERROR: %s[%d] -> qb_num = %d, error!\n", __func__, __LINE__, qb_num);
+		slog(LOG_ERR, "%s:%d -> qb_num = %d, error!\n", __func__, __LINE__, qb_num);
 		return 0;
 	}
 	size = sizeof(msgq_context_t) + sizeof(msgq_block_t) * qb_num;
 
 	context = (msgq_context_t *)malloc(size);
 	if (!context) {
-		printf("ERROR: %s[%d] -> msgq_context_t malloc error!\n", __func__, __LINE__);
+		slog(LOG_ERR, "%s:%d -> msgq_context_t malloc error(%s)!\n", __func__, __LINE__, strerror(errno));
 		return 0;
 	}
 
 	mem_context = mem_init(sizeof(msg_t));
 	if (mem_context == -1) {
-		printf("ERROR: %s[%d] -> mem_init error!\n", __func__, __LINE__);
+		slog(LOG_ERR, "%s:%d -> mem_init error!\n", __func__, __LINE__);
 		free(context);
 		return 0;
 	}
@@ -89,7 +90,7 @@ int msgq_bind(int context, int module_id)
 
 	free_msgqb_id = get_free_msgqb_id(context_t);
 	if (free_msgqb_id == -1) {
-		printf("ERROR:\n");
+		slog(LOG_ERR, "%s:%d -> get_free_msgqb_id!\n", __func__, __LINE__);
 		return -1;
 	}
 
@@ -161,7 +162,7 @@ int write_msg(int context, msg_t *msg, int priority)
 
 	msgqb = &context_t->qblist[msgqb_id];
 	msgq = &msgqb->msgq[priority];
-	/*printf("%s:%d -> get_msgqb_by_module_id [%d] - %d\n", __func__, __LINE__, msgqb_id, msgqb->module_id);*/
+	/*printf("%s:%d -> get_msgqb_by_module_id [%d] - %d, data:[%s]\n", __func__, __LINE__, msgqb_id, msgqb->module_id, msg->data);*/
 
 	/* lock */
 	pthread_mutex_lock(&msgqb->mutex);
@@ -284,13 +285,13 @@ int send_msg(int sender_id, int receiver_id,
 	msg->receiver_id = receiver_id;
 	msg->msgid = msgid;
 	//TODO: memcpy 16 byte
-	memcpy(msg->data, data, 16);
+	memcpy((void *)(msg->data), (void *)data, 16);
 
 	return write_msg(g_msgq_context, msg, msgpri);
 }
 
 /**
- * send_simple_msg_async:
+ * send_simple_msg:
  *
  * called by sender, send simple msg from sender to receiver
  *
@@ -321,7 +322,7 @@ int broadcast_simple_msg(int sender_id, int msgid)
 		msgqb = &qblist[i];
 		if (msgqb->state == MSGQ_STATE_USE) {
 			receiver_id = msgqb->module_id;
-			ret = send_simple_msg_async(sender_id, receiver_id, msgid);
+			ret = send_simple_msg(sender_id, receiver_id, msgid);
 			if (ret) {
 				printf("ERROR: \n");
 			}

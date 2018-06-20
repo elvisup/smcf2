@@ -4,6 +4,8 @@
 #ifndef __SMCF_H__
 #define __SMCF_H__
 
+extern volatile int smcf_startup;
+
 /*******************************************************************************\
  * async msg                                                                   *
 \*******************************************************************************/
@@ -101,8 +103,6 @@ typedef struct __data_channel_hook {
 	int channel;		/* if module is sender set -1, if is receiver set sender channel id */
 } data_channel_hook_t;
 
-typedef struct node node_t;
-
 /**
  * get_normal_chn_data
  * input:
@@ -114,8 +114,8 @@ typedef struct node node_t;
  *   otherwise this channel is receiver, will return a use data node
  * ...
  **/
-void *get_data(int current_module_id, int channel_id);
-void *get_hook_data(int current_module_id, int channel_id);
+void *get_data(int current_module_id, int channel_id, void *data);
+void *get_hook_data(int current_module_id, int channel_id, void *data, unsigned int dsize);
 
 /**
  * put_normal_chn_data

@@ -21,6 +21,7 @@
 #include <pthread.h>
 
 #include <utils/node_list.h>
+#include <utils/slog.h>
 
 typedef struct node_list {
 	/* free list */
@@ -65,6 +66,7 @@ node_t *Get_Free_Node(int context)
 
 		pthread_mutex_lock(&list->free_mutex);
 		{
+			/*printf("c: %p, p: %p, n:%p\n", head->next, head->next->prev, head->next->next);*/
 			node = list_entry(head->next, node_t, head);
 			list_del(head->next);
 			list->free_cnt--;
@@ -73,6 +75,7 @@ node_t *Get_Free_Node(int context)
 
 		return node;
 	}
+	slog(LOG_DBG, "%s:%d context is NULL\n", __func__, __LINE__);
 
 	return NULL;
 }
@@ -202,6 +205,8 @@ int Node_List_Init(unsigned int node_size, unsigned int nodes,
 	if (type == NODE_DATA_TYPE_POINTER)
 		node_size = 0;
 
+	/*slog(LOG_DBG, "%s:%d -> node size: %d\n", __func__, __LINE__, node_size);*/
+
 	/* alloc context */
 	list = malloc(sizeof(node_list_t));
 	if (!list) {
@@ -211,8 +216,8 @@ int Node_List_Init(unsigned int node_size, unsigned int nodes,
 	memset(list, 0x0, sizeof(node_list_t));
 
 	/* init list head */
-	INIT_LIST_HEAD(&list->free);
-	INIT_LIST_HEAD(&list->use);
+	INIT_LIST_HEAD(&(list->free));
+	INIT_LIST_HEAD(&(list->use));
 
 	/* init sem and mutex */
 	sem_init(&list->free_sem, 0, 0);
@@ -234,12 +239,11 @@ int Node_List_Init(unsigned int node_size, unsigned int nodes,
 		if (type == NODE_DATA_TYPE_POINTER)
 			node->data = NULL;
 		else
-			node->data = (char *)node + node_size;
+			node->data = (char *)node + sizeof(node_t);
 
 		node->context = (int)list;
 		node->_private = 0;
-		printf("%s:%d -> node addr: %p, data addr: %p\n", \
-			__func__, __LINE__, node, node->data);
+		/*slog(LOG_DBG, "%s:%d -> node addr: %p, data addr: %p\n", __func__, __LINE__, node, node->data);*/
 		Put_Free_Node((int)list, node);
 	}
 

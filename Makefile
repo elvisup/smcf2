@@ -1,5 +1,6 @@
 TOPDIR = .
 CROSS_COMPILE:=mips-linux-gnu-
+#CROSS_COMPILE:=
 
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
@@ -20,7 +21,8 @@ OBJS := $(TOPDIR)/src/core.o \
 	$(TOPDIR)/src/data.o \
 	$(TOPDIR)/src/mem.o \
 	$(TOPDIR)/src/module_manager.o \
-	$(TOPDIR)/src/utils/node_list/node_list.o
+	$(TOPDIR)/src/utils/node_list/node_list.o \
+	$(TOPDIR)/src/utils/log/slog.o
 
 ifeq ($(LIBTYPE), muclibc)
 	TARGET := ./out/lib/uclibc/libsmcf.a

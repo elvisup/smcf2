@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include <mem.h>
 #include <slist.h>
+#include <core.h>
 
 #define MIN_UNIT_SIZE	0
 #define MAX_UNIT_SIZE	32768
@@ -82,13 +84,13 @@ int mem_init(int unit_size)
 	mem_context *context = NULL;
 
 	if (unit_size <= MIN_UNIT_SIZE || unit_size >= MAX_UNIT_SIZE) {
-		printf("ERROR: %s[%d] -> unit_size = %d, error!\n", __func__, __LINE__, unit_size);
+		slog(LOG_ERR, "%s:%d -> unit_size = %d, error!\n", __func__, __LINE__, unit_size);
 		return -1;
 	}
 
 	context = malloc(sizeof(mem_context));
 	if (!context) {
-		printf("ERROR: %s[%d] -> mem_context malloc error!\n", __func__, __LINE__);
+		slog(LOG_ERR, "%s:%d -> mem_context malloc error(%s)!\n", __func__, __LINE__, strerror(errno));
 		return -1;
 	}
 

@@ -3,6 +3,7 @@
 
 #include <smcf.h>
 #include <msg.h>
+#include <utils/slog.h>
 
 #define MAX_MODULE_CHANNEL_CNT           4
 #define MODULE_CHANNEL_ENABLE            1
