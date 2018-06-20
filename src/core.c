@@ -137,7 +137,6 @@ int smcf_module_register(module_t *module)
 			pthread_attr_setschedpolicy(&attr, SCHED_OTHER);
 			ret = pthread_create(&thread, &attr, &msg_process_entry, (void*)module_block);
 		} else {
-			//TODO
 			slog(LOG_ERR, "%s:%d -> msg_process, maybe you should manager message manual!\n", __func__, __LINE__);
 		}
 	}
