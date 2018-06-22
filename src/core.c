@@ -14,8 +14,6 @@
 
 smcf_context_t *context = NULL;
 extern data_chn_table_t gdc_table;
-volatile int smcf_startup;
-
 
 static void *msg_process_entry(void *data) {
 	int ret;
@@ -49,7 +47,7 @@ static void *msg_process_entry(void *data) {
 	return 0;
 }
 
-int smcf_init(void)
+int smcf2_init(void)
 {
 	context = (smcf_context_t *)malloc(sizeof(smcf_context_t));
 	if (!context) {
@@ -83,7 +81,7 @@ error_context:
 	return -1;
 }
 
-int smcf_start(void)
+int smcf2_start(void)
 {
 	int ret = -1;
 
@@ -97,12 +95,12 @@ int smcf_start(void)
 	return ret;
 }
 
-void smcf_stop(void)
+void smcf2_stop(void)
 {
 	return;
 }
 
-int smcf_module_register(module_t *module)
+int smcf2_module_register(module_t *module)
 {
 	int ret = -1;
 
@@ -149,3 +147,9 @@ error:
 	return ret;
 }
 
+void smcf_initialized(void)
+{
+	while(smcf_startup != 1) {
+		usleep(10*1000);
+	}
+}

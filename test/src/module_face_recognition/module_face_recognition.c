@@ -13,7 +13,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_face_recognition.h>
 #include <module_rtsp_video.h>
 
@@ -42,13 +42,15 @@ static int msg_process(int sender_id, int msgid, char data[16])
 
 void *fr_get_data_from_ch0(void *arg)
 {
+	char *rbuf = malloc(1024);
 	while (1) {
-		if (smcf_startup) {
-			char buffer[128] = {0};
-			get_data(MODULE_ID_FACE_RECOGNITION, 0, buffer);
-			printf("%s:%d -> [%s]\n", __func__, __LINE__, buffer);
-		} else {
+		int context = smcf2_recever_get_data(MODULE_ID_FACE_RECOGNITION, 0, (void **)&rbuf);
+		if (context == -1) {
+			printf("%s:%d recever_get_data error!\n", __func__, __LINE__);
 			usleep(1000*30);
+		} else {
+			printf("%s:%d -> [%s], ctx: 0x%x\n", __func__, __LINE__, rbuf, context);
+			smcf2_recever_put_data(context, MODULE_ID_FACE_RECOGNITION, 0);
 		}
 	}
 }
@@ -83,7 +85,7 @@ int Module_FaceRecognition_Init(void)
 	pthread_detach(frpid0);
 
 	/* register module */
-	ret = smcf_module_register(module_face_recognition);
+	ret = smcf2_module_register(module_face_recognition);
 	if (ret) {
 		printf("%s(ERROR): module register error!\n", MODULE_TAG);
 		return -1;

@@ -7,7 +7,7 @@
 #include <core.h>
 #include <msg.h>
 #include <mem.h>
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_manager.h>
 
 /**
@@ -228,13 +228,13 @@ msg_t *read_msg(int context, int receiver_id)
 }
 
 /**
- * recv_msg:
+ * smcf2_recv_msg:
  *
  * called by sender, send msg from sender to receiver
  *
  * return 0 if success.
  **/
-int recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16])
+int smcf2_recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16])
 {
 	msg_t *msg;
 
@@ -264,13 +264,13 @@ int recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16])
 }
 
 /**
- * send_msg:
+ * smcf2_send_msg:
  *
  * called by sender, send msg from sender to receiver
  *
  * return 0 if success.
  **/
-int send_msg(int sender_id, int receiver_id,
+int smcf2_send_msg(int sender_id, int receiver_id,
 	     int msgpri, int msgid, char data[16])
 {
 	msg_t *msg;
@@ -299,7 +299,7 @@ int send_msg(int sender_id, int receiver_id,
  **/
 int send_simple_msg(int sender_id, int receiver_id, int msgid)
 {
-	return send_msg(sender_id, receiver_id, MSG_PRI_LOW, msgid, NULL);
+	return smcf2_send_msg(sender_id, receiver_id, MSG_PRI_LOW, msgid, NULL);
 }
 
 /**

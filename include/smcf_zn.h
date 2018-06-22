@@ -122,7 +122,17 @@ typedef struct __data_channel_hook {
  * 注意:
  *   获取到的数据保存在data中，所以请保证data已经开辟足够的空间保存所要接收的数据。
  **/
-void *get_data(int current_module_id, int channel_id, void *data);
+int get_data(int current_module_id, int channel_id, void *data);
+
+/**
+ * 函数：put_data
+ * 输入：
+ *   current_module_id: 获取数据的模块的模块ID
+ *   channel_id: 获取数据的通道ID
+ *   data: 存放需要发送的数据地址
+ * ...
+ **/
+int put_data(int current_module_id, int channel_id, void *data);
 
 /**
  * 函数：get_hook_data
@@ -135,17 +145,7 @@ void *get_data(int current_module_id, int channel_id, void *data);
  * 注意:
  *   获取到的数据保存在data中，所以请保证data已经开辟足够的空间保存所要接收的数据。
  **/
-void *get_hook_data(int current_module_id, int channel_id, void *data, unsigned int dsize);
-
-/**
- * 函数：put_data
- * 输入：
- *   current_module_id: 获取数据的模块的模块ID
- *   channel_id: 获取数据的通道ID
- *   data: 存放需要发送的数据地址
- * ...
- **/
-int put_data(int current_module_id, int channel_id, void *data);
+int get_hook_data(int current_module_id, int channel_id, void *data, unsigned int dsize);
 int put_hook_data(int current_module_id, int channel_id, void *data);
 
 /*******************************************************************************\

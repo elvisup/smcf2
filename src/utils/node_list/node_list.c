@@ -244,6 +244,7 @@ int Node_List_Init(unsigned int node_size, unsigned int nodes,
 		node->context = (int)list;
 		node->_private = 0;
 		/*slog(LOG_DBG, "%s:%d -> node addr: %p, data addr: %p\n", __func__, __LINE__, node, node->data);*/
+		/*slog(LOG_DBG, "\t%s:%d -> node addr: %p\n", __func__, __LINE__, node);*/
 		Put_Free_Node((int)list, node);
 	}
 

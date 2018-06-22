@@ -9,9 +9,10 @@
 #include <pthread.h>
 #include <linux/input.h>
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_rtsp_video.h>
 #include <module_face_capture.h>
+#include <module_t01_control.h>
 
 #define MODULE_TAG "rtsp"
 module_t *module_rtsp_video;
@@ -21,8 +22,6 @@ pthread_mutex_t rtsp_mutex_msg;
 static int msg_process(int sender_id, int msgid, char data[16])
 {
 	pthread_mutex_lock(&rtsp_mutex_msg);
-
-	int ret = 0;
 
 	switch (msgid) {
 	case MSG_I_RTSP_GET_DATA: {
@@ -46,37 +45,43 @@ static int msg_process(int sender_id, int msgid, char data[16])
 	return 0;
 }
 
-void *rtsp_put_data_to_ch0(void *arg)
+void *rtsp_put_data_to_ch1(void *arg)
 {
 	char *email = "rtsp module: ";
 	int i = 0;
 	while (1) {
-		if (smcf_startup) {
-			char buf[32] = {0};
-			sprintf(buf, "%s%d", email, i);
-			put_data(MODULE_ID_RTSP_VIDEO, 1, buf);
+		char buf[32] = {0};
+		sprintf(buf, "%s%d", email, i);
+		/*put_data(MODULE_ID_RTSP_VIDEO, 1, buf);*/
+		char *p = buf;
+		int context = smcf2_sender_alloc_data(MODULE_ID_RTSP_VIDEO, 1);
+		if (context == -1) {
+			printf("%s:%d sender_alloc_data error!\n", __func__, __LINE__);
+			usleep(1000*30);
+		} else {
+			smcf2_sender_put_data(context, MODULE_ID_RTSP_VIDEO, 1, (void **)&p);
 			i++;
 			sleep(1);
-		} else {
-			usleep(1000*30);
 		}
 	}
 }
 
 void *rtsp_get_data_from_ch0(void *arg)
 {
+	char *rbuf = malloc(1024);
 	while (1) {
-		if (smcf_startup) {
-			char buffer[128] = {0};
-			/*get_data(MODULE_ID_FACE_CAPTURE, 0, buffer);*/
-			get_data(MODULE_ID_RTSP_VIDEO, 0, buffer);
-			printf("%s:%d -> [%s]\n", __func__, __LINE__, buffer);
-			send_msg(MODULE_ID_RTSP_VIDEO, MODULE_ID_FACE_CAPTURE, MSG_PRI_LOW, MSG_I_START_FACE_CAPTURE, "rtsp send fc");
+		int context = smcf2_recever_get_data(MODULE_ID_RTSP_VIDEO, 0, (void **)&rbuf);
+		if (context == -1) {
+			printf("%s:%d recever_get_data error!\n", __func__, __LINE__);
+			usleep(1000*30);
+		} else {
+			printf("%s:%d -> [%s], ctx: 0x%x\n", __func__, __LINE__, rbuf, context);
+			smcf2_recever_put_data(context, MODULE_ID_RTSP_VIDEO, 0);
+			smcf2_send_msg(MODULE_ID_RTSP_VIDEO, MODULE_ID_FACE_CAPTURE, MSG_PRI_LOW, MSG_I_START_FACE_CAPTURE, "rtsp send fc");
 
 			//SEND SYNC MSG
-			send_msg_sync(MODULE_ID_RTSP_VIDEO, MODULE_ID_FACE_CAPTURE, 2, "from rtsp");
-		} else {
-			usleep(1000*30);
+			smcf2_send_msg_sync(MODULE_ID_RTSP_VIDEO, MODULE_ID_FACE_CAPTURE, 2, "from rtsp");
+			smcf2_send_msg_sync(MODULE_ID_RTSP_VIDEO, MODULE_ID_T01_CONTROL, 2, "from rtsp");
 		}
 	}
 }
@@ -123,13 +128,13 @@ int module_rtsp_video_init(void)
 	pthread_detach(pid0);
 
 	pthread_t rp_pidmd;
-	ret = pthread_create(&rp_pidmd, NULL, rtsp_put_data_to_ch0, NULL);
+	ret = pthread_create(&rp_pidmd, NULL, rtsp_put_data_to_ch1, NULL);
 	if (ret) {
 		printf("pthread create rp_pidmd error\n");
 	}
 	pthread_detach(rp_pidmd);
 
-	ret = smcf_module_register(module_rtsp_video);
+	ret = smcf2_module_register(module_rtsp_video);
 	if (ret == -1) {
 		printf("ERROR\n");
 	}

@@ -8,7 +8,7 @@
 #include <pthread.h>
 #include <linux/input.h>
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_web_server.h>
 
 #define MODULE_TAG "web server"
@@ -46,9 +46,9 @@ int module_web_server_init(void)
 	module_web_server->id          = MODULE_ID_WEB_SERVER;
 	module_web_server->msg_process = msg_process;
 
-	ret = smcf_module_register(module_web_server);
+	ret = smcf2_module_register(module_web_server);
 	if (ret) {
-		printf("%s(%d) smcf_module_register error!\n", __func__, __LINE__);
+		printf("%s(%d) smcf2_module_register error!\n", __func__, __LINE__);
 		return -1;
 	}
 

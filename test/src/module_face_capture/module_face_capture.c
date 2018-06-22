@@ -20,7 +20,7 @@
 #include <sys/time.h>
 
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_face_capture.h>
 #include <module_rtsp_video.h>
 #include <module_t01_control.h>
@@ -62,20 +62,51 @@ void *put_data_to_ch0(void *arg)
 	char *email = "cape module: ";
 	int i = 0;
 	while (1) {
-		if (smcf_startup) {
-			char buf[32] = {0};
-			sprintf(buf, "%s%d", email, i);
-			put_data(MODULE_ID_FACE_CAPTURE, 0, buf);
-			send_msg(MODULE_ID_FACE_CAPTURE, MODULE_ID_RTSP_VIDEO, MSG_PRI_LOW, MSG_I_RTSP_GET_DATA, "fc send rtsp");
+		char buf[32] = {0};
+		sprintf(buf, "%s%d", email, i);
+		char *p = buf;
+		int context = smcf2_sender_alloc_data(MODULE_ID_FACE_CAPTURE, 0);
+		if (context == -1) {
+			printf("%s:%d smcf2_sender_alloc_data error!\n", __func__, __LINE__);
+			usleep(1000*30);
+		} else {
+			smcf2_sender_put_data(context, MODULE_ID_FACE_CAPTURE, 0, (void **)&p);
+			smcf2_send_msg(MODULE_ID_FACE_CAPTURE, MODULE_ID_RTSP_VIDEO, MSG_PRI_LOW, MSG_I_RTSP_GET_DATA, "fc send rtsp");
 			i++;
 
 			//SEND SYNC MSG
-			send_msg_sync(MODULE_ID_FACE_CAPTURE, MODULE_ID_T01_CONTROL, 2, "sync msg from fc");
+			smcf2_send_msg_sync(MODULE_ID_FACE_CAPTURE, MODULE_ID_T01_CONTROL, 2, "sync msg from fc");
 			sleep(1);
-		} else {
-			usleep(1000*30);
 		}
 	}
+}
+
+void *put_data_to_hch0(void *arg)
+{
+	char *email = "fc hookchn: ";
+	int i = 0;
+	char buf[32] = {0};
+	char *p = NULL;
+	while (1) {
+		memset(buf, 0, 32);
+		sprintf(buf, "%s%d", email, i);
+		p = buf;
+		int context = smcf2_sender_alloc_hook_data(MODULE_ID_FACE_CAPTURE, 0);
+		if (context == -1) {
+			printf("%s:%d sender_alloc_hook_data error!\n", __func__, __LINE__);
+			usleep(1000*30);
+		} else {
+			smcf2_sender_put_hook_data(context, MODULE_ID_FACE_CAPTURE, 0, (void **)&p);
+			i++;
+			sleep(1);
+		}
+	}
+}
+
+int fc_hook_ch0_data_release(void *data)
+{
+	printf("%s:%d -> %p\n", __func__, __LINE__, data);
+	return 0;
 }
 
 int fc_sync_msg_process(int sender_id, int msgid, char data[16])
@@ -99,12 +130,22 @@ int module_face_capture_init(void)
 	module_face_capture->auto_msg_process_en = 1;
 	module_face_capture->sync_msg_process_en = 1;
 	module_face_capture->sync_msg_process = fc_sync_msg_process;
+
+	//NORMAL CHN
 	module_face_capture->data_channel[0].enable = 1;
 	module_face_capture->data_channel[0].role = DATA_CHANNEL_SENDER;
 	module_face_capture->data_channel[0].size = 1024;
 	module_face_capture->data_channel[0].num  = 8;
 	module_face_capture->data_channel[0].module_id  = -1;
 	module_face_capture->data_channel[0].channel    = -1;
+
+	//HOOK CHN
+	module_face_capture->data_hchannel[0].enable = 1;
+	module_face_capture->data_hchannel[0].role = DATA_CHANNEL_SENDER;
+	module_face_capture->data_hchannel[0].num  = 8;
+	module_face_capture->data_hchannel[0].module_id  = -1;
+	module_face_capture->data_hchannel[0].channel    = -1;
+	module_face_capture->data_hchannel[0].release    = fc_hook_ch0_data_release;
 
 	pthread_mutex_init(&fc_mutex_msg, NULL);
 
@@ -115,7 +156,14 @@ int module_face_capture_init(void)
 	}
 	pthread_detach(pidmd);
 
-	ret = smcf_module_register(module_face_capture);
+	pthread_t pidhook0;
+	ret = pthread_create(&pidhook0, NULL, put_data_to_hch0, NULL);
+	if (ret) {
+		printf("pthread create pidhook0 error\n");
+	}
+	pthread_detach(pidhook0);
+
+	ret = smcf2_module_register(module_face_capture);
 	if (ret == -1) {
 		printf("ERROR\n");
 	}

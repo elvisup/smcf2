@@ -1,9 +1,11 @@
 #ifndef __CORE_H__
 #define __CORE_H__
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <msg.h>
 #include <utils/slog.h>
+
+volatile int smcf_startup;
 
 #define MAX_MODULE_CHANNEL_CNT           4
 #define MODULE_CHANNEL_ENABLE            1
@@ -33,5 +35,7 @@ typedef struct __smcf_context {
 	 */
 	int data_channel_context;
 } smcf_context_t;
+
+void smcf_initialized(void);
 
 #endif /* __CORE_H__ */

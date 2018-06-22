@@ -1,10 +1,8 @@
 /**
- * smcf.h
+ * smcf2.h
  **/
-#ifndef __SMCF_H__
-#define __SMCF_H__
-
-extern volatile int smcf_startup;
+#ifndef __SMCF2_H__
+#define __SMCF2_H__
 
 /*******************************************************************************\
  * async msg                                                                   *
@@ -18,7 +16,7 @@ extern volatile int smcf_startup;
 #define MSG_PRI_LOW           2
 
 /**
- * func: send_msg
+ * func: smcf2_send_msg
  * input:
  *   sender_id: the id of modules send msg
  *   receiver_id: the id of modules receiver msg
@@ -31,10 +29,10 @@ extern volatile int smcf_startup;
  *         if we needn't carry data to receiver module, please set
  *         data == NULL.
  **/
-int send_msg(int sender_id, int receiver_id, int msgpri, int msgid, char data[16]);
+int smcf2_send_msg(int sender_id, int receiver_id, int msgpri, int msgid, char data[16]);
 
 /**
- * func: recv_msg
+ * func: smcf2_recv_msg
  * input:
  *   sender_id: the id of modules that this msg send from
  *   receiver_id: the id of modules receiver msg
@@ -46,18 +44,18 @@ int send_msg(int sender_id, int receiver_id, int msgpri, int msgid, char data[16
  *         if we needn't carry data to receiver module, please set
  *         data == NULL.
  *
- *   if auto_msg_process == 1, recv_msg invalied, modules receive
- *   msg by smcf auto manager, you can not recv_msg manually, otherwise
+ *   if auto_msg_process == 1, smcf2_recv_msg invalied, modules receive
+ *   msg by smcf auto manager, you can not smcf2_recv_msg manually, otherwise
  *   this api will return -1.
  **/
-int recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16]);
+int smcf2_recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16]);
 
 /*******************************************************************************\
  * sync msg                                                                    *
 \*******************************************************************************/
 
 /**
- * func: send_msg_sync
+ * func: smcf2_send_msg_sync
  * input:
  *   sender_id: the id of modules send msg
  *   receiver_id: the id of modules receiver msg
@@ -69,7 +67,7 @@ int recv_msg(int *sender_id, int receiver_id, int *msgid, char data[16]);
  *   module support sync msg. if receive module do not support sync
  *   msg, this API wii return error.
  **/
-int send_msg_sync(int sender_id, int receiver_id, int msgid, char data[16]);
+int smcf2_send_msg_sync(int sender_id, int receiver_id, int msgid, char data[16]);
 
 /*******************************************************************************\
  * data                                                                        *
@@ -101,6 +99,7 @@ typedef struct __data_channel_hook {
 	int num; 		/* node number of data channel */
 	int module_id;		/* if module is sender set -1, if is receiver set sender id */
 	int channel;		/* if module is sender set -1, if is receiver set sender channel id */
+	int (*release)(void *data);
 } data_channel_hook_t;
 
 /**
@@ -114,8 +113,7 @@ typedef struct __data_channel_hook {
  *   otherwise this channel is receiver, will return a use data node
  * ...
  **/
-void *get_data(int current_module_id, int channel_id, void *data);
-void *get_hook_data(int current_module_id, int channel_id, void *data, unsigned int dsize);
+//int get_data(int current_module_id, int channel_id, void *data);
 
 /**
  * put_normal_chn_data
@@ -129,8 +127,17 @@ void *get_hook_data(int current_module_id, int channel_id, void *data, unsigned 
  *   otherwise this channel is receiver, will put data to free node list.
  * ...
  **/
-int put_data(int current_module_id, int channel_id, void *data);
-int put_hook_data(int current_module_id, int channel_id, void *data);
+//int put_data(int current_module_id, int channel_id, void *data);
+
+int smcf2_sender_alloc_data(int current_module_id, int channel_id);
+int smcf2_sender_put_data(int context, int current_module_id, int channel_id, void **data);
+int smcf2_recever_get_data(int current_module_id, int channel_id, void **data);
+int smcf2_recever_put_data(int context, int current_module_id, int channel_id);
+
+int smcf2_sender_alloc_hook_data(int current_module_id, int channel_id);
+int smcf2_sender_put_hook_data(int context, int current_module_id, int channel_id, void **data);
+int smcf2_recever_get_hook_data(int current_module_id, int channel_id, void **data);
+int smcf2_recever_put_hook_data(int context, int current_module_id, int channel_id);
 
 /*******************************************************************************\
  * smcf                                                                        *
@@ -153,9 +160,9 @@ typedef struct __module {
 	data_channel_hook_t data_hchannel[4];
 } module_t;
 
-int smcf_init(void);
-int smcf_start(void);
-void smcf_stop(void);
-int smcf_module_register(module_t *module);
+int smcf2_init(void);
+int smcf2_start(void);
+void smcf2_stop(void);
+int smcf2_module_register(module_t *module);
 
-#endif /* __SMCF_H__ */
+#endif /* __SMCF2_H__ */

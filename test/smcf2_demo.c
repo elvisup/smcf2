@@ -11,7 +11,7 @@
 #include <signal.h>
 #include <pthread.h>
 
-#include <smcf.h>
+#include <smcf2.h>
 #include <module_rtsp_video.h>
 #include <module_face_capture.h>
 #include <module_face_recognition.h>
@@ -25,7 +25,7 @@ static void auto_deinit(void)
 {
 	/* int ret = -1; */
 
-	/*ret = smcf_stop();*/
+	/*ret = smcf2_stop();*/
 	/*ret = smcf_deinit(msg_recv_handler);*/
 
 	stop = 1;
@@ -65,7 +65,7 @@ int main(int argc, char **argv)
 	pthread_mutex_init(&mutex_msg, NULL);
 
 	/* init simple module communaction framework */
-	ret = smcf_init();
+	ret = smcf2_init();
 	if (ret) {
 		printf("%s:%d -> smcf_init error!\n", __func__, __LINE__);
 		return -1;
@@ -102,7 +102,7 @@ int main(int argc, char **argv)
 #endif
 
 	/* start simple module communaction framework */
-	ret = smcf_start();
+	ret = smcf2_start();
 	if (ret) {
 		printf("%s:%d -> smcf_start error!\n", __func__, __LINE__);
 		return -1;
