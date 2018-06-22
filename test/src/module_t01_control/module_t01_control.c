@@ -74,7 +74,7 @@ void *ctl_get_data_from_hookch0(void *arg)
 			usleep(1000*30);
 		} else {
 			printf("%s:%d -> [%s], ctx: 0x%x\n", __func__, __LINE__, rbuf, context);
-			smcf2_recever_put_hook_data(context, MODULE_ID_T01_CONTROL, 0);
+			smcf2_recever_release_hook_data(context, MODULE_ID_T01_CONTROL, 0);
 		}
 	}
 }

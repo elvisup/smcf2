@@ -92,6 +92,53 @@ typedef struct __data_channel {
 	int channel;		/* if module is sender set -1, if is receiver set sender channel id */
 } data_channel_t;
 
+/**
+ * smcf2_sender_request_data
+ * input:
+ *   current_module_id: get data module's id
+ *   channel_id: get data module channel's id
+ *
+ * return:
+ * ...
+ **/
+int smcf2_sender_request_data(int current_module_id, int channel_id);
+
+/**
+ * smcf2_sender_put_data
+ * input:
+ *   handle:
+ *   current_module_id: get data module's id
+ *   channel_id: get data module channel's id
+ *   data:
+ *
+ * return:
+ **/
+int smcf2_sender_put_data(int handle , int current_module_id, int channel_id, void **data);
+
+/**
+ * smcf2_recever_get_data
+ * input:
+ *   current_module_id: get data module's id
+ *   channel_id: get data module channel's id
+ *
+ * output:
+ *   data:
+ *
+ * return:
+ **/
+int smcf2_recever_get_data(int current_module_id, int channel_id, void **data);
+
+/**
+ * smcf2_recever_release_data
+ * input:
+ *   handle:
+ *   current_module_id: get data module's id
+ *   channel_id: get data module channel's id
+ *
+ * return:
+ **/
+int smcf2_recever_release_data(int handle, int current_module_id, int channel_id);
+
 /* reserved for special use */
 typedef struct __data_channel_hook {
 	int enable;		/* this channel enable or not, if not 1 indecate disable */
@@ -102,42 +149,10 @@ typedef struct __data_channel_hook {
 	int (*release)(void *data);
 } data_channel_hook_t;
 
-/**
- * get_normal_chn_data
- * input:
- *   current_module_id: get data module's id
- *   channel_id: get data module channel's id
- *
- * return:
- *   when this channel is sender, will return a free data node,
- *   otherwise this channel is receiver, will return a use data node
- * ...
- **/
-//int get_data(int current_module_id, int channel_id, void *data);
-
-/**
- * put_normal_chn_data
- * input:
- *   current_module_id: get data module's id
- *   channel_id: get data module channel's id
- *   data: data buffer
- *
- * note:
- *   when this channel is sender, will put data to use node list,
- *   otherwise this channel is receiver, will put data to free node list.
- * ...
- **/
-//int put_data(int current_module_id, int channel_id, void *data);
-
-int smcf2_sender_alloc_data(int current_module_id, int channel_id);
-int smcf2_sender_put_data(int context, int current_module_id, int channel_id, void **data);
-int smcf2_recever_get_data(int current_module_id, int channel_id, void **data);
-int smcf2_recever_put_data(int context, int current_module_id, int channel_id);
-
-int smcf2_sender_alloc_hook_data(int current_module_id, int channel_id);
-int smcf2_sender_put_hook_data(int context, int current_module_id, int channel_id, void **data);
+int smcf2_sender_request_hook_data(int current_module_id, int channel_id);
+int smcf2_sender_put_hook_data(int handle, int current_module_id, int channel_id, void **data);
 int smcf2_recever_get_hook_data(int current_module_id, int channel_id, void **data);
-int smcf2_recever_put_hook_data(int context, int current_module_id, int channel_id);
+int smcf2_recever_release_hook_data(int handle, int current_module_id, int channel_id);
 
 /*******************************************************************************\
  * smcf                                                                        *
@@ -150,7 +165,7 @@ typedef struct __module {
 	 * current process finished, so don't blocked in this function */
 	int auto_msg_process_en;
 	int (*msg_process)(int sender_id, int msgid, char data[16]);
- 	/* if sync_msg_process_en == 0, call this func report error */
+	/* if sync_msg_process_en == 0, call this func report error */
 	int sync_msg_process_en;
 	int (*sync_msg_process)(int sender_id, int msgid, char data[16]);
 

@@ -65,9 +65,9 @@ void *put_data_to_ch0(void *arg)
 		char buf[32] = {0};
 		sprintf(buf, "%s%d", email, i);
 		char *p = buf;
-		int context = smcf2_sender_alloc_data(MODULE_ID_FACE_CAPTURE, 0);
+		int context = smcf2_sender_request_data(MODULE_ID_FACE_CAPTURE, 0);
 		if (context == -1) {
-			printf("%s:%d smcf2_sender_alloc_data error!\n", __func__, __LINE__);
+			printf("%s:%d smcf2_sender_request_data error!\n", __func__, __LINE__);
 			usleep(1000*30);
 		} else {
 			smcf2_sender_put_data(context, MODULE_ID_FACE_CAPTURE, 0, (void **)&p);
@@ -91,7 +91,7 @@ void *put_data_to_hch0(void *arg)
 		memset(buf, 0, 32);
 		sprintf(buf, "%s%d", email, i);
 		p = buf;
-		int context = smcf2_sender_alloc_hook_data(MODULE_ID_FACE_CAPTURE, 0);
+		int context = smcf2_sender_request_hook_data(MODULE_ID_FACE_CAPTURE, 0);
 		if (context == -1) {
 			printf("%s:%d sender_alloc_hook_data error!\n", __func__, __LINE__);
 			usleep(1000*30);

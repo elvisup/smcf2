@@ -50,7 +50,7 @@ void *fr_get_data_from_ch0(void *arg)
 			usleep(1000*30);
 		} else {
 			printf("%s:%d -> [%s], ctx: 0x%x\n", __func__, __LINE__, rbuf, context);
-			smcf2_recever_put_data(context, MODULE_ID_FACE_RECOGNITION, 0);
+			smcf2_recever_release_data(context, MODULE_ID_FACE_RECOGNITION, 0);
 		}
 	}
 }

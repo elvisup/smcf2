@@ -1,6 +1,5 @@
 TOPDIR = .
 CROSS_COMPILE:=mips-linux-gnu-
-#CROSS_COMPILE:=
 
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar

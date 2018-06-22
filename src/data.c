@@ -51,7 +51,8 @@ int check_producer_consumer_correspondence(void)
 			int s_mchnid = search_dca->ca.schnid;
 			int s_mchn_attr = search_dca->ca.chnattr;
 
-			slog(LOG_INFO, "%s:%d sender module info: module id: %d, chn id: %d\n", __func__, __LINE__, s_mid, s_mchnid);
+			slog(LOG_INFO, "%s:%d sender module info: module id: %d, chn id: %s%d\n", \
+				       __func__, __LINE__, s_mid, (s_mchn_attr == HOOK_CHN) ? "H" : "N", s_mchnid);
 			data_chn_attr_t *tmp_dca = NULL;
 			data_chn_attr_t *next_dca = gdc_table.dca;
 			do {
@@ -117,7 +118,6 @@ int create_module_channel(module_t *module, int chn_num, int attr)
 	} else {
 		module_chn_info.chn_info[cur_module_info_cnt].producer_chn_id = -1;
 		module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id = chn_num;
-		/*printf("module name: %s, producer_hchn_id : %d, n: %d\n", module->name, module_chn_info.chn_info[cur_module_info_cnt].producer_hchn_id, cur_module_info_cnt);*/
 	}
 	module_chn_info.chn_info[cur_module_info_cnt].chn_use_node_cnt = 0;
 	module_chn_info.chn_info[cur_module_info_cnt].chn_free_node_cnt = node_num;
@@ -260,7 +260,7 @@ int module_data_channel_init(module_t *module)
 			    (module->data_channel[i].role == DATA_CHANNEL_RECEIVER)) {
 				data_chn_attr_t *dca = (data_chn_attr_t *)malloc(sizeof(data_chn_attr_t));
 				if (dca == NULL) {
-					printf("%s:%d -> malloc dca error!\n", __func__, __LINE__);
+					slog(LOG_ERR, "%s:%d malloc dca error!\n", __func__, __LINE__);
 					goto error;
 				}
 				dca->next = NULL;
@@ -395,48 +395,20 @@ int read_data(int current_module_id, int channel_id, void **data, int chn_type)
 		}
 	}
 
-	/*
-	 *for (i = 0; i < cur_module_info_cnt; i++) {
-	 *        if (((module_chn_info.chn_info[i].producer_id == mid) && \
-	 *             (module_chn_info.chn_info[i].producer_chn_id == cid)) || \
-	 *            ((module_chn_info.chn_info[i].producer_id == mid) && \
-	 *             (module_chn_info.chn_info[i].producer_hchn_id == cid))) {
-	 *                break;
-	 *        }
-	 *}
-	 */
-
 	if (i == cur_module_info_cnt) {
 		slog(LOG_ERR, "%s:%d cur_module_info_cnt == i\n", __func__, __LINE__);
 		goto error;
 	}
 
 	int nodelist = module_chn_info.chn_info[i].chn_node_list;
-	/*
-	 *if (chn_type == HOOK_CHN) {
-	 *        printf("%s:%d HOOK nodelist: 0x%x\n", __func__, __LINE__, nodelist);
-	 *}
-	 */
 
 	node_t *node = NULL;
 	if (module_role == DATA_CHANNEL_SENDER) {
 		node = Get_Free_Node(nodelist);
-		/*
-		 *if (chn_type == HOOK_CHN) {
-		 *        printf("%s:%d HOOK nodelist: %p\n", __func__, __LINE__, node);
-		 *}
-		 */
-		/*printf("Sender: get free node : %p\n", node);*/
 		module_chn_info.chn_info[i].chn_free_node_cnt--;
 	} else {
 		node = Get_Use_Node(nodelist);
-		/*
-		 *if (chn_type == HOOK_CHN) {
-		 *        printf("%s:%d HOOK nodelist: %p\n", __func__, __LINE__, node);
-		 *}
-		 */
 		*data = node->data;
-		/*printf("RECEVR: get use node : %p, ndata: %s, data: %s\n", node, node->data, *data);*/
 		module_chn_info.chn_info[i].chn_use_node_cnt--;
 	}
 
@@ -445,7 +417,7 @@ error:
 	return -1;
 }
 
-int write_data(int context, int current_module_id, int channel_id, void **data, int chn_type)
+int write_data(int handle, int current_module_id, int channel_id, void **data, int chn_type)
 {
 	module_t *cur_module = NULL;
 	cur_module = search_module_from_mblock_list(current_module_id);
@@ -501,16 +473,6 @@ int write_data(int context, int current_module_id, int channel_id, void **data, 
 			}
 		}
 	}
-	/*
-	 *for (i = 0; i < cur_module_info_cnt; i++) {
-	 *        if (((module_chn_info.chn_info[i].producer_id == mid) && \
-	 *             (module_chn_info.chn_info[i].producer_chn_id == cid)) || \
-	 *            ((module_chn_info.chn_info[i].producer_id == mid) && \
-	 *             (module_chn_info.chn_info[i].producer_hchn_id == cid))) {
-	 *                break;
-	 *        }
-	 *}
-	 */
 
 	if (i == cur_module_info_cnt) {
 		printf("ERROR\n");
@@ -520,7 +482,7 @@ int write_data(int context, int current_module_id, int channel_id, void **data, 
 	int nodelist = module_chn_info.chn_info[i].chn_node_list;
 	/*slog(LOG_DBG, "%s:%d cur_module_info_cnt %d, nodelist: %p\n", __func__, __LINE__, i, nodelist);*/
 
-	node_t *node = (node_t *)context;
+	node_t *node = (node_t *)handle;
 	if (module_role == DATA_CHANNEL_SENDER) {
 		if (chn_type == HOOK_CHN) {
 			node->data = *data;
@@ -528,17 +490,10 @@ int write_data(int context, int current_module_id, int channel_id, void **data, 
 			memcpy(node->data, *data, data_size);
 		}
 		Put_Use_Node(nodelist, node);
-		/*
-		 *if (chn_type == HOOK_CHN) {
-		 *        printf("%s:%d HOOK nodelist: %p\n", __func__, __LINE__, node);
-		 *}
-		 */
-		/*printf("Sender: put use node : %p, ndata:%s, data: %s, data_size: %d\n", node, node->data, *data, data_size);*/
 		module_chn_info.chn_info[i].chn_use_node_cnt++;
 	} else {
 		//callback_release
 		if (chn_type == HOOK_CHN) {
-
 			module_t *sender_module = NULL;
 			sender_module = search_module_from_mblock_list(mid);
 			if (!sender_module) {
@@ -552,13 +507,7 @@ int write_data(int context, int current_module_id, int channel_id, void **data, 
 				slog(LOG_INFO, "%s:%d module:%d, chn:%d not register release function!\n", __func__, __LINE__, mid, cid);
 			}
 		}
-		/*
-		 *if (chn_type == HOOK_CHN) {
-		 *        printf("%s:%d HOOK nodelist: %p\n", __func__, __LINE__, node);
-		 *}
-		 */
 		Put_Free_Node(nodelist, node);
-		/*printf("RECEVR: put free node : %p\n", node);*/
 		module_chn_info.chn_info[i].chn_free_node_cnt++;
 	}
 
@@ -567,13 +516,13 @@ error:
 	return -1;
 }
 
-//get_data return node context
+//get_data return node handle
 int get_data(int current_module_id, int channel_id, void **data)
 {
 	return read_data(current_module_id, channel_id, data, NORMAL_CHN);
 }
 
-int smcf2_sender_alloc_data(int current_module_id, int channel_id)
+int smcf2_sender_request_data(int current_module_id, int channel_id)
 {
 	smcf_initialized();
 	return get_data(current_module_id, channel_id, NULL);
@@ -585,21 +534,21 @@ int smcf2_recever_get_data(int current_module_id, int channel_id, void **data)
 	return get_data(current_module_id, channel_id, data);
 }
 
-int put_data(int context, int current_module_id, int channel_id, void **data)
+int put_data(int handle, int current_module_id, int channel_id, void **data)
 {
-	return write_data(context, current_module_id, channel_id, data, NORMAL_CHN);
+	return write_data(handle, current_module_id, channel_id, data, NORMAL_CHN);
 }
 
-int smcf2_sender_put_data(int context, int current_module_id, int channel_id, void **data)
+int smcf2_sender_put_data(int handle, int current_module_id, int channel_id, void **data)
 {
 	smcf_initialized();
-	return put_data(context, current_module_id, channel_id, data);
+	return put_data(handle, current_module_id, channel_id, data);
 }
 
-int smcf2_recever_put_data(int context, int current_module_id, int channel_id)
+int smcf2_recever_release_data(int handle, int current_module_id, int channel_id)
 {
 	smcf_initialized();
-	return put_data(context, current_module_id, channel_id, NULL);
+	return put_data(handle, current_module_id, channel_id, NULL);
 }
 
 int get_hook_data(int current_module_id, int channel_id, void *data)
@@ -607,7 +556,7 @@ int get_hook_data(int current_module_id, int channel_id, void *data)
 	return read_data(current_module_id, channel_id, data, HOOK_CHN);
 }
 
-int smcf2_sender_alloc_hook_data(int current_module_id, int channel_id)
+int smcf2_sender_request_hook_data(int current_module_id, int channel_id)
 {
 	smcf_initialized();
 	return get_hook_data(current_module_id, channel_id, NULL);
@@ -619,19 +568,19 @@ int smcf2_recever_get_hook_data(int current_module_id, int channel_id, void **da
 	return get_hook_data(current_module_id, channel_id, data);
 }
 
-int put_hook_data(int context, int current_module_id, int channel_id, void *data)
+int put_hook_data(int handle, int current_module_id, int channel_id, void *data)
 {
-	return write_data(context, current_module_id, channel_id, data, HOOK_CHN);
+	return write_data(handle, current_module_id, channel_id, data, HOOK_CHN);
 }
 
-int smcf2_sender_put_hook_data(int context, int current_module_id, int channel_id, void **data)
+int smcf2_sender_put_hook_data(int handle, int current_module_id, int channel_id, void **data)
 {
 	smcf_initialized();
-	return put_hook_data(context, current_module_id, channel_id, data);
+	return put_hook_data(handle, current_module_id, channel_id, data);
 }
 
-int smcf2_recever_put_hook_data(int context, int current_module_id, int channel_id)
+int smcf2_recever_release_hook_data(int handle, int current_module_id, int channel_id)
 {
 	smcf_initialized();
-	return put_hook_data(context, current_module_id, channel_id, NULL);
+	return put_hook_data(handle, current_module_id, channel_id, NULL);
 }

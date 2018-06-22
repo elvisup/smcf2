@@ -54,7 +54,7 @@ void *rtsp_put_data_to_ch1(void *arg)
 		sprintf(buf, "%s%d", email, i);
 		/*put_data(MODULE_ID_RTSP_VIDEO, 1, buf);*/
 		char *p = buf;
-		int context = smcf2_sender_alloc_data(MODULE_ID_RTSP_VIDEO, 1);
+		int context = smcf2_sender_request_data(MODULE_ID_RTSP_VIDEO, 1);
 		if (context == -1) {
 			printf("%s:%d sender_alloc_data error!\n", __func__, __LINE__);
 			usleep(1000*30);
@@ -76,7 +76,7 @@ void *rtsp_get_data_from_ch0(void *arg)
 			usleep(1000*30);
 		} else {
 			printf("%s:%d -> [%s], ctx: 0x%x\n", __func__, __LINE__, rbuf, context);
-			smcf2_recever_put_data(context, MODULE_ID_RTSP_VIDEO, 0);
+			smcf2_recever_release_data(context, MODULE_ID_RTSP_VIDEO, 0);
 			smcf2_send_msg(MODULE_ID_RTSP_VIDEO, MODULE_ID_FACE_CAPTURE, MSG_PRI_LOW, MSG_I_START_FACE_CAPTURE, "rtsp send fc");
 
 			//SEND SYNC MSG

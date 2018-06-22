@@ -1,7 +1,6 @@
 TOPDIR = .
 OUTDIR = $(TOPDIR)/out
 CROSS_COMPILE:=mips-linux-gnu-
-#CROSS_COMPILE:=
 
 CC = $(CROSS_COMPILE)gcc
 CPP = $(CROSS_COMPILE)g++
@@ -24,9 +23,9 @@ LIBS := -L$(TOPDIR)/../out/lib/glibc/ -lsmcf
 endif
 
 ifeq ($(LIBTYPE), muclibc)
-	TARGET = smcf_demo_uclibc
+	TARGET = smcf2_demo_uclibc
 else
-	TARGET = smcf_demo_glibc
+	TARGET = smcf2_demo_glibc
 endif
 
 OBJS := ./src/module_face_capture/module_face_capture.o \
